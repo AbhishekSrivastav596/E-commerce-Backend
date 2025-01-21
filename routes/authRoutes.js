@@ -5,7 +5,7 @@ const User = require('../models/User');
 const router = express.Router();
 
 const generateTokens = (username) => {
-  const accessToken = jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: '1m' });
+  const accessToken = jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: '3h' });
   const refreshToken = jwt.sign({ username }, process.env.JWT_REFRESH_SECRET, { expiresIn: '3d' });
   return { accessToken, refreshToken };
 };
