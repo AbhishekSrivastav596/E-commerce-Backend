@@ -4,8 +4,10 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const router = express.Router();
 
-const generateToken = (username) => {
-  return jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: '1h' });
+const generateTokens = (username) => {
+  const accessToken = jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: '1m' });
+  const refreshToken = jwt.sign({ username }, process.env.JWT_REFRESH_SECRET, { expiresIn: '3d' });
+  return { accessToken, refreshToken };
 };
 
 router.post('/register', async (req, res) => {
@@ -43,12 +45,13 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: "Invalid username or password." });
     }
 
-    const token = generateToken(username);
+    const { accessToken, refreshToken } = generateTokens(username);
 
     return res.status(200).json({
       message: "Login successful!",
       username,
-      token,
+      accessToken,
+      refreshToken, 
     });
   } catch (error) {
     console.error(error);
@@ -56,14 +59,25 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get("/users", async (req, res) => {
-  try {
-    const users = await User.find();
-    res.json(users);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error retrieving users." });
+router.post('/refresh-token', (req, res) => {
+  const refreshToken = req.body.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: "Refresh token required." });
   }
+
+  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ message: "Invalid or expired refresh token." });
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(decoded.username);
+
+    res.status(200).json({
+      accessToken,
+      refreshToken: newRefreshToken, 
+    });
+  });
 });
 
 module.exports = router;
